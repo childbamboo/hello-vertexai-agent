@@ -378,10 +378,169 @@ praw>=7.7.0
 
 ## 5. API キー取得手順
 
-| API | 取得 URL | 所要ステップ |
-|---|---|---|
-| Finnhub | https://finnhub.io/register | メール登録 → ダッシュボードでキー取得 |
-| Marketaux | https://www.marketaux.com/register | メール登録 → ダッシュボードでキー取得 |
-| FRED | https://fredaccount.stlouisfed.org/apikeys | メール登録 → API キー申請 |
-| Reddit | https://www.reddit.com/prefs/apps | Reddit アカウント → "create app" → script 型で登録 |
-| Financial Datasets | https://financialdatasets.ai/ | メール登録 → API キー取得 |
+すべて無料で取得可能。所要時間は各 API とも 2〜5 分程度。
+
+---
+
+### 5.1 Finnhub
+
+> **環境変数:** `FINNHUB_API_KEY`
+
+1. https://finnhub.io/register にアクセス
+2. メールアドレスとパスワードで **Sign Up**
+3. メール認証を完了
+4. ログイン後、ダッシュボード (https://finnhub.io/dashboard) を開く
+5. **API Key** セクションにキーが表示されている（自動発行済み）
+6. キーをコピーして環境変数にセット
+
+```bash
+export FINNHUB_API_KEY="c1234567890abcdef"
+```
+
+**確認コマンド:**
+
+```bash
+curl "https://finnhub.io/api/v1/quote?symbol=AAPL&token=$FINNHUB_API_KEY"
+```
+
+---
+
+### 5.2 Marketaux
+
+> **環境変数:** `MARKETAUX_API_KEY`
+
+1. https://www.marketaux.com/register にアクセス
+2. メールアドレスとパスワードで **Create Account**（クレジットカード不要）
+3. メール認証を完了
+4. ログイン後、ダッシュボード (https://www.marketaux.com/dashboard) を開く
+5. **Your API Token** セクションにトークンが表示される
+6. トークンをコピーして環境変数にセット
+
+```bash
+export MARKETAUX_API_KEY="abcdefg1234567890"
+```
+
+**確認コマンド:**
+
+```bash
+curl "https://api.marketaux.com/v1/news/all?symbols=AAPL&filter_entities=true&limit=1&api_token=$MARKETAUX_API_KEY"
+```
+
+---
+
+### 5.3 FRED (Federal Reserve Economic Data)
+
+> **環境変数:** `FRED_API_KEY`
+
+1. https://fredaccount.stlouisfed.org/apikeys にアクセス
+2. 初めての場合は **Create Account** からアカウント作成（メール + パスワード）
+3. ログイン後、**API Keys** ページで **Request API Key** をクリック
+4. 用途の説明を入力（例: `Market intelligence research project`）
+5. 利用規約に同意して **Request API Key**
+6. 発行されたキーをコピーして環境変数にセット
+
+```bash
+export FRED_API_KEY="abcdefghijklmnop1234567890"
+```
+
+**確認コマンド:**
+
+```bash
+curl "https://api.stlouisfed.org/fred/series/observations?series_id=GDP&api_key=$FRED_API_KEY&file_type=json&limit=1&sort_order=desc"
+```
+
+---
+
+### 5.4 Reddit
+
+> **環境変数:** `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET`
+
+1. Reddit アカウントでログイン（なければ https://www.reddit.com/register で作成）
+2. https://www.reddit.com/prefs/apps にアクセス
+3. ページ下部の **create another app...** をクリック
+4. 以下を入力:
+   - **name:** `market-intelligence-agent`（任意）
+   - **App type:** **script** を選択（個人利用・開発用）
+   - **description:** `Market intelligence PoC`（任意）
+   - **about url:** 空欄で OK
+   - **redirect uri:** `http://localhost:8080`（script 型では使わないが必須項目）
+5. **create app** をクリック
+6. 作成されたアプリ情報を確認:
+   - **client_id:** アプリ名の直下に表示される短い文字列（例: `Ab1Cd2Ef3Gh4Ij`）
+   - **secret:** `secret` の横に表示される文字列
+7. それぞれを環境変数にセット
+
+```bash
+export REDDIT_CLIENT_ID="Ab1Cd2Ef3Gh4Ij"
+export REDDIT_CLIENT_SECRET="KlMnOpQrStUvWxYz1234567890"
+```
+
+**確認コマンド (Python):**
+
+```python
+import praw
+reddit = praw.Reddit(
+    client_id="$REDDIT_CLIENT_ID",
+    client_secret="$REDDIT_CLIENT_SECRET",
+    user_agent="market-intelligence-agent/1.0",
+)
+print(list(reddit.subreddit("stocks").hot(limit=1)))
+```
+
+---
+
+### 5.5 Financial Datasets (MCP 用)
+
+> **環境変数:** `FINANCIAL_DATASETS_API_KEY`
+
+1. https://financialdatasets.ai/ にアクセス
+2. **Sign Up** からメールアドレスとパスワードで登録
+3. メール認証を完了
+4. ログイン後、ダッシュボードで API キーを確認
+5. キーをコピーして環境変数にセット
+
+```bash
+export FINANCIAL_DATASETS_API_KEY="fd_abcdefg1234567890"
+```
+
+**確認コマンド:**
+
+```bash
+curl -H "X-API-Key: $FINANCIAL_DATASETS_API_KEY" \
+  "https://api.financialdatasets.ai/financial-statements/income-statements?ticker=AAPL&period=annual&limit=1"
+```
+
+---
+
+### 5.6 一括設定用テンプレート
+
+すべてのキーを取得後、以下を `.env` ファイルとして保存し `source` で読み込む:
+
+```bash
+# .env (このファイルは .gitignore に追加すること)
+
+# Google Cloud
+export PROJECT_ID="your-gcp-project-id"
+export REGION="us-central1"
+export STAGING_BUCKET="gs://your-bucket-vertexai-staging"
+
+# Finnhub - https://finnhub.io/dashboard
+export FINNHUB_API_KEY=""
+
+# Marketaux - https://www.marketaux.com/dashboard
+export MARKETAUX_API_KEY=""
+
+# FRED - https://fredaccount.stlouisfed.org/apikeys
+export FRED_API_KEY=""
+
+# Reddit - https://www.reddit.com/prefs/apps
+export REDDIT_CLIENT_ID=""
+export REDDIT_CLIENT_SECRET=""
+
+# Financial Datasets - https://financialdatasets.ai/
+export FINANCIAL_DATASETS_API_KEY=""
+```
+
+```bash
+source .env
+```
