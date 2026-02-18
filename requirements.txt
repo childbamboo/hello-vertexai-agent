@@ -1,0 +1,3 @@
+google-cloud-aiplatform[agent_engines,adk]>=1.112
+google-adk>=1.0.0
+google-auth>=2.0.0
