@@ -18,7 +18,6 @@ import sys
 import vertexai
 from vertexai.generative_models import (
     FunctionDeclaration,
-    GenerationConfig,
     GenerativeModel,
     Tool,
 )
@@ -113,37 +112,43 @@ def demo_code_execution():
 
     Gemini モデルに Python コードを生成・実行させます。
     コードはサーバーサイドのサンドボックスで安全に実行されます。
+    google.genai API を使用します。
     """
     print("\n" + "=" * 60)
     print("2. Code Execution")
     print("=" * 60)
 
-    model = GenerativeModel(
-        model_name="gemini-2.0-flash",
-        tools=[Tool.from_code_execution()],
+    from google import genai
+    from google.genai import types as genai_types
+
+    client = genai.Client(
+        vertexai=True,
+        project=PROJECT_ID,
+        location=REGION,
+        http_options=genai_types.HttpOptions(timeout=120_000),
     )
 
-    response = model.generate_content(
-        "フィボナッチ数列の最初の 20 項を計算して、"
+    response = client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents="フィボナッチ数列の最初の 20 項を計算して、"
         "偶数の項だけを抽出してリスト表示してください。"
-        "Python コードを書いて実行してください。"
+        "Python コードを書いて実行してください。",
+        config=genai_types.GenerateContentConfig(
+            tools=[genai_types.Tool(code_execution={})],
+        ),
     )
 
     print(f"  プロンプト: フィボナッチ数列 (偶数フィルタ)")
     print(f"  レスポンス:")
-    for candidate in response.candidates:
-        for part in candidate.content.parts:
-            if hasattr(part, "executable_code") and part.executable_code:
-                print(f"    [実行コード]")
-                print(f"    {part.executable_code.code}")
-            elif (
-                hasattr(part, "code_execution_result")
-                and part.code_execution_result
-            ):
-                print(f"    [実行結果]")
-                print(f"    {part.code_execution_result.output}")
-            elif part.text:
-                print(f"    {part.text[:200]}")
+    for part in response.candidates[0].content.parts:
+        if part.executable_code:
+            print(f"    [実行コード]")
+            print(f"    {part.executable_code.code}")
+        elif part.code_execution_result:
+            print(f"    [実行結果]")
+            print(f"    {part.code_execution_result.output}")
+        elif part.text:
+            print(f"    {part.text[:200]}")
 
 
 # =====================================================================
@@ -153,23 +158,29 @@ def demo_google_search_grounding():
     """Google Search Grounding のデモ。
 
     モデルの回答を Google 検索結果で裏付け (グラウンディング) します。
+    google.genai API の google_search ツールを使用します。
     """
     print("\n" + "=" * 60)
     print("3. Google Search Grounding")
     print("=" * 60)
 
-    from vertexai.generative_models import grounding
+    from google import genai
+    from google.genai import types as genai_types
 
-    model = GenerativeModel(model_name="gemini-2.0-flash")
-
-    tool = Tool.from_google_search_retrieval(
-        grounding.GoogleSearchRetrieval()
+    client = genai.Client(
+        vertexai=True,
+        project=PROJECT_ID,
+        location=REGION,
+        http_options=genai_types.HttpOptions(timeout=120_000),
     )
 
-    response = model.generate_content(
-        "2026年の日本の最新ニュースを3つ教えてください",
-        tools=[tool],
-        generation_config=GenerationConfig(temperature=0.0),
+    response = client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents="2026年の日本の最新ニュースを3つ教えてください",
+        config=genai_types.GenerateContentConfig(
+            tools=[genai_types.Tool(google_search={})],
+            temperature=0.0,
+        ),
     )
 
     print(f"  プロンプト: 2026年の日本の最新ニュース")
@@ -177,15 +188,14 @@ def demo_google_search_grounding():
     for candidate in response.candidates:
         for part in candidate.content.parts:
             if part.text:
-                # 長いレスポンスは切り詰め
                 text = part.text[:500]
                 print(f"    {text}")
         # グラウンディングメタデータを表示
-        if hasattr(candidate, "grounding_metadata") and candidate.grounding_metadata:
+        if candidate.grounding_metadata:
             meta = candidate.grounding_metadata
-            if hasattr(meta, "search_entry_point") and meta.search_entry_point:
+            if meta.search_entry_point:
                 print(f"    [検索クエリ使用]")
-            if hasattr(meta, "grounding_supports") and meta.grounding_supports:
+            if meta.grounding_supports:
                 print(f"    [グラウンディングソース: {len(meta.grounding_supports)} 件]")
 
 

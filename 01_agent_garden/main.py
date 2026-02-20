@@ -14,7 +14,7 @@ import sys
 
 from google.adk.agents import Agent
 from google.adk.runners import InMemoryRunner
-from google.adk.tools.google_api_registry import ApiRegistry
+from google.adk.tools import ApiRegistry
 from google.genai import types
 
 
@@ -23,6 +23,12 @@ REGION = os.environ.get("REGION", "us-central1")
 
 if not PROJECT_ID:
     sys.exit("環境変数 PROJECT_ID を設定してください")
+
+# ADK の GoogleLLM は google.genai.Client() 経由で Vertex AI に接続する。
+# 環境変数で Vertex AI モードを有効化する。
+os.environ.setdefault("GOOGLE_GENAI_USE_VERTEXAI", "1")
+os.environ.setdefault("GOOGLE_CLOUD_PROJECT", PROJECT_ID)
+os.environ.setdefault("GOOGLE_CLOUD_LOCATION", REGION)
 
 
 def list_available_toolsets():
@@ -100,10 +106,19 @@ def main():
     agent = create_agent_with_registry_tool(api_registry)
 
     # 3. エージェントに問い合わせ
+    import asyncio
+
     runner = InMemoryRunner(agent=agent, app_name="agent_garden_demo")
     user_id = "demo_user"
-    session = runner.session_service.create_session(
-        app_name="agent_garden_demo", user_id=user_id
+    session_id = "demo_session"
+
+    # セッションを事前に作成 (async API)
+    asyncio.run(
+        runner.session_service.create_session(
+            app_name="agent_garden_demo",
+            user_id=user_id,
+            session_id=session_id,
+        )
     )
 
     queries = [
@@ -118,7 +133,7 @@ def main():
         )
         response_text = ""
         for event in runner.run(
-            user_id=user_id, session_id=session.id, new_message=content
+            user_id=user_id, session_id=session_id, new_message=content
         ):
             if event.content and event.content.parts:
                 for part in event.content.parts:

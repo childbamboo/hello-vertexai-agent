@@ -23,11 +23,14 @@ from vertexai.generative_models import GenerativeModel, Tool
 
 PROJECT_ID = os.environ.get("PROJECT_ID")
 REGION = os.environ.get("REGION", "us-central1")
+# RAG Engine は us-central1, us-east1, us-east4 で新規プロジェクト制限あり。
+# 別リージョンを RAG_REGION で指定可能 (例: europe-west4, asia-southeast1)
+RAG_REGION = os.environ.get("RAG_REGION", REGION)
 
 if not PROJECT_ID:
     sys.exit("環境変数 PROJECT_ID を設定してください")
 
-vertexai.init(project=PROJECT_ID, location=REGION)
+vertexai.init(project=PROJECT_ID, location=RAG_REGION)
 
 # デモ用のサンプルドキュメント
 SAMPLE_DOCUMENTS = {
@@ -153,7 +156,12 @@ def retrieval_query(corpus_name: str):
         if response.contexts and response.contexts.contexts:
             for i, ctx in enumerate(response.contexts.contexts):
                 snippet = ctx.text[:150].replace("\n", " ")
-                print(f"    [{i+1}] (距離: {ctx.distance:.3f}) {snippet}...")
+                # SDK バージョンにより score or distance フィールドが異なる
+                score = getattr(ctx, "score", None) or getattr(ctx, "distance", None)
+                if score is not None:
+                    print(f"    [{i+1}] (スコア: {score:.3f}) {snippet}...")
+                else:
+                    print(f"    [{i+1}] {snippet}...")
         else:
             print("    (関連コンテキストなし)")
 
@@ -168,8 +176,10 @@ def generate_with_rag(corpus_name: str):
                 rag_resources=[
                     rag.RagResource(rag_corpus=corpus_name),
                 ],
-                similarity_top_k=3,
-                vector_distance_threshold=0.5,
+                rag_retrieval_config=rag.RagRetrievalConfig(
+                    top_k=3,
+                    filter=rag.Filter(vector_distance_threshold=0.5),
+                ),
             ),
         )
     )
@@ -202,7 +212,7 @@ def main():
     print("RAG Engine サンプル")
     print("=" * 60)
     print(f"プロジェクト: {PROJECT_ID}")
-    print(f"リージョン:   {REGION}")
+    print(f"RAG リージョン: {RAG_REGION}")
 
     # 1. コーパス作成
     rag_corpus = create_corpus()
