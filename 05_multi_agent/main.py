@@ -20,6 +20,7 @@ ADK Web UI:
     adk web 05_multi_agent
 """
 
+import asyncio
 import os
 import sys
 
@@ -30,6 +31,12 @@ from .pipeline import root_agent
 
 PROJECT_ID = os.environ.get("PROJECT_ID")
 REGION = os.environ.get("REGION", "us-central1")
+
+# Vertex AI モードを有効化
+os.environ.setdefault("GOOGLE_GENAI_USE_VERTEXAI", "1")
+if PROJECT_ID:
+    os.environ.setdefault("GOOGLE_CLOUD_PROJECT", PROJECT_ID)
+os.environ.setdefault("GOOGLE_CLOUD_LOCATION", REGION)
 
 
 def check_api_keys():
@@ -77,9 +84,15 @@ def run_pipeline(query: str):
         app_name="market_intelligence",
     )
     user_id = "demo_user"
-    session = runner.session_service.create_session(
-        app_name="market_intelligence",
-        user_id=user_id,
+    session_id = "demo_session"
+
+    # create_session is async in ADK 1.x
+    asyncio.run(
+        runner.session_service.create_session(
+            app_name="market_intelligence",
+            user_id=user_id,
+            session_id=session_id,
+        )
     )
 
     print(f"\n{'='*60}")
@@ -97,7 +110,7 @@ def run_pipeline(query: str):
 
     for event in runner.run(
         user_id=user_id,
-        session_id=session.id,
+        session_id=session_id,
         new_message=content,
     ):
         # エージェントの切り替わりを表示
@@ -119,7 +132,14 @@ def run_pipeline(query: str):
     print(f"{'='*60}")
 
     # セッションステートから各フェーズの出力を表示
-    state = session.state or {}
+    session = asyncio.run(
+        runner.session_service.get_session(
+            app_name="market_intelligence",
+            user_id=user_id,
+            session_id=session_id,
+        )
+    )
+    state = session.state if session else {}
     print("\n--- Session State Keys ---")
     for key in ["news_data", "financial_data", "sentiment_data", "trend_analysis", "strategy_report"]:
         if key in state:

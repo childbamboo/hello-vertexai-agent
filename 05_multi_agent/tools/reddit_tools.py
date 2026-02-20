@@ -10,6 +10,11 @@ import praw
 from ..config.settings import REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET, REDDIT_USER_AGENT
 
 
+def _is_reddit_configured() -> bool:
+    """Reddit API の認証情報が設定されているか確認する。"""
+    return bool(REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET)
+
+
 def _get_reddit_client() -> praw.Reddit:
     """Reddit API クライアントを生成する。"""
     return praw.Reddit(
@@ -36,6 +41,14 @@ def get_reddit_hot_posts(
     Returns:
         各サブレディットの人気投稿リスト (タイトル, スコア, コメント数等)
     """
+    if not _is_reddit_configured():
+        return {
+            "error": "Reddit API credentials not configured (REDDIT_CLIENT_ID / REDDIT_CLIENT_SECRET). Skipping Reddit data.",
+            "subreddits": [],
+            "total_posts": 0,
+            "posts": [],
+        }
+
     reddit = _get_reddit_client()
     subreddit_list = [s.strip() for s in subreddits.split(",")]
 
@@ -86,6 +99,15 @@ def search_reddit_posts(
     Returns:
         検索結果の投稿リスト
     """
+    if not _is_reddit_configured():
+        return {
+            "error": "Reddit API credentials not configured (REDDIT_CLIENT_ID / REDDIT_CLIENT_SECRET). Skipping Reddit data.",
+            "query": query,
+            "subreddits": [],
+            "total_posts": 0,
+            "posts": [],
+        }
+
     reddit = _get_reddit_client()
     subreddit_list = [s.strip() for s in subreddits.split(",")]
 

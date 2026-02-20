@@ -24,6 +24,14 @@ def get_financial_news_with_sentiment(
     Returns:
         センチメントスコア付きのニュース記事リスト
     """
+    if not MARKETAUX_API_KEY:
+        return {
+            "error": "Marketaux API key not configured (MARKETAUX_API_KEY). Skipping sentiment news.",
+            "symbols": symbols.upper(),
+            "count": 0,
+            "articles": [],
+        }
+
     resp = requests.get(
         f"{MARKETAUX_BASE_URL}/news/all",
         params={

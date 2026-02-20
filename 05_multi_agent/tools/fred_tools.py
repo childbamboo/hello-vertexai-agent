@@ -52,6 +52,12 @@ def get_economic_indicators() -> dict:
     Returns:
         主要経済指標の最新値と日付を含む辞書
     """
+    if not FRED_API_KEY:
+        return {
+            "error": "FRED API key not configured (FRED_API_KEY). Skipping economic indicators.",
+            "indicators": {},
+        }
+
     key_indicators = [
         "gdp_growth",
         "unemployment_rate",
@@ -109,6 +115,14 @@ def get_economic_series(
     Returns:
         指定シリーズの直近データポイントのリスト
     """
+    if not FRED_API_KEY:
+        return {
+            "error": "FRED API key not configured (FRED_API_KEY). Skipping economic series.",
+            "series_id": series_id,
+            "count": 0,
+            "observations": [],
+        }
+
     data = _fred_get_latest(series_id, limit=observation_count)
     observations = data.get("observations", [])
 
